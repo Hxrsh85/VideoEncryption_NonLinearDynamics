@@ -10,12 +10,12 @@ class AudioEncryptor:
         self.r = r
         self.x0 = x0
         self.key = None
-
+    @staticmethod
     def read_audio(path):
         rate, data = wavfile.read(path)
         print(f"Loaded '{path}' → rate={rate}, shape={data.shape}, dtype={data.dtype}")
         return rate, data
-
+    @staticmethod
     def write_audio(path, rate, data):
         wavfile.write(path, rate, data)
         print(f"Saved '{path}' → dtype={data.dtype}, shape={data.shape}")
@@ -59,12 +59,12 @@ class AudioDecryptor:
     def __init__(self, r=3.99, x0=0.5):
         self.r = r
         self.x0 = x0
-
+    @staticmethod
     def read_audio(path):
         rate, data = wavfile.read(path)
         print(f"Loaded '{path}' → rate={rate}, shape={data.shape}, dtype={data.dtype}")
         return rate, data
-
+    @staticmethod
     def write_audio(path, rate, data):
         wavfile.write(path, rate, data)
         print(f"Saved '{path}' → dtype={data.dtype}, shape={data.shape}")
