@@ -106,6 +106,6 @@ if __name__ == '__main__':
     encryptor = AudioEncryptor(r=3.99, x0=0.5)
     key_stream, sr = encryptor.encrypt('person1.wav', 'person1_encrypted.wav')
 
-    decryptor = AudioDecryptor(r=3.99, x0=0.5)
-    decryptor.decrypt('person1_encrypted.wav', 'person1_decrypted.wav', key=key_stream, rate=sr)
+    decryptor = AudioDecryptor(r=3.99, x0=0.50000000001)
+    decryptor.decrypt('person1_encrypted.wav', 'person1_decrypted.wav', rate=sr)
     print("Done: encryption and decryption complete.")
