@@ -1,93 +1,81 @@
 import numpy as np
 import cv2
-import numpy as np
 
 class ImageEncryptor:
-    def __init__(self, r=3.99, x0=0.5):
+    def __init__(self, frame_shape, r=3.99, x0=0.5):
         self.r = r
         self.x0 = x0
-        self.key = None
-        self.permutation = None
+        self.frame_shape = frame_shape
+        self.n = frame_shape[0] * frame_shape[1] * frame_shape[2]
+
+        # Precompute key and permutation once
+        self.key = self.generate_key(self.n)
+        self.permutation = self.generate_permutation(self.n)
 
     def generate_key(self, n):
-        x = self.x0
-        key = np.empty(n, dtype=np.uint8)
-        for i in range(n):
-            x = self.r * x * (1 - x)
-            key[i] = np.uint8(np.floor(x * 255))
+        x = np.empty(n, dtype=np.float32)
+        x[0] = self.x0
+        for i in range(1, n):
+            x[i] = self.r * x[i-1] * (1 - x[i-1])
+        key = np.floor(x * 255).astype(np.uint8)
         return key
 
     def generate_permutation(self, n):
-        np.random.seed(42) 
-        permutation = np.random.permutation(n)
-        return permutation
+        np.random.seed(42)
+        return np.random.permutation(n)
 
     def encrypt(self, frame):
-        height, width, channels = frame.shape
-        n = height * width * channels 
-
-        self.key = self.generate_key(n)
-        self.permutation = self.generate_permutation(n)
-
-        flat_frame = frame.flatten()
-        flat_frame = flat_frame[self.permutation] 
-
-        encrypted_flat_frame = np.bitwise_xor(flat_frame, self.key[:len(flat_frame)])
-        encrypted_frame = encrypted_flat_frame.reshape((height, width, channels))
-
-        return encrypted_frame, self.key, self.permutation
+        flat_frame = frame.reshape(-1)
+        shuffled_frame = flat_frame[self.permutation]
+        encrypted_flat_frame = np.bitwise_xor(shuffled_frame, self.key)
+        encrypted_frame = encrypted_flat_frame.reshape(self.frame_shape)
+        return encrypted_frame
 
 
 class ImageDecryptor:
-    def __init__(self, r=3.99, x0=0.5):
+    def __init__(self, frame_shape, r=3.99, x0=0.5):
         self.r = r
         self.x0 = x0
+        self.frame_shape = frame_shape
+        self.n = frame_shape[0] * frame_shape[1] * frame_shape[2]
+
+        # Precompute key and permutation once
+        self.key = self.generate_key(self.n)
+        self.permutation = self.generate_permutation(self.n)
+        self.inverse_permutation = np.argsort(self.permutation)
 
     def generate_key(self, n):
-        x = self.x0
-        key = np.empty(n, dtype=np.uint8)
-        for i in range(n):
-            x = self.r * x * (1 - x)
-            key[i] = np.uint8(np.floor(x * 255))
+        x = np.empty(n, dtype=np.float32)
+        x[0] = self.x0
+        for i in range(1, n):
+            x[i] = self.r * x[i-1] * (1 - x[i-1])
+        key = np.floor(x * 255).astype(np.uint8)
         return key
 
     def generate_permutation(self, n):
-        np.random.seed(42) 
-        permutation = np.random.permutation(n)
-        return permutation
+        np.random.seed(42)
+        return np.random.permutation(n)
 
-    def decrypt(self, frame, key=None, permutation=None, shape=None):
-
-        height, width, channels = shape
-        n = height * width * channels
-
-        if key is None:
-            key = self.generate_key(n)
-
-        if permutation is None:
-            permutation = self.generate_permutation(n)
-
-        inverse_permutation = np.argsort(permutation)
-
-        flat_frame = frame.flatten()
-        decrypted_flat_frame = np.bitwise_xor(flat_frame, key[:len(flat_frame)])
-        decrypted_flat_frame = decrypted_flat_frame[inverse_permutation]  # unshuffle
-        decrypted_frame = decrypted_flat_frame.reshape((height, width, channels))
-
+    def decrypt(self, frame):
+        flat_frame = frame.reshape(-1)
+        decrypted_flat_frame = np.bitwise_xor(flat_frame, self.key)
+        unshuffled_frame = decrypted_flat_frame[self.inverse_permutation]
+        decrypted_frame = unshuffled_frame.reshape(self.frame_shape)
         return decrypted_frame
 
 
-
 if __name__ == '__main__':
+    frame = cv2.imread('/Users/harshsingh/Desktop/Course/Nld/frames/frame0.jpg')
+    frame_shape = frame.shape
 
-    frame = cv2.imread(f'/Users/harshsingh/Desktop/Course/Nld/frames/frame0.jpg') 
+    # Important: use SAME r and x0
+    r = 3.99
+    x0 = 0.7
 
-    encryptor = ImageEncryptor(r=3.99, x0=0.7)
-    encrypted_frame, key_stream, permutation = encryptor.encrypt(frame)
+    encryptor = ImageEncryptor(frame_shape, r=r, x0=x0)
+    encrypted_frame = encryptor.encrypt(frame)
+    cv2.imwrite('encrypted_frame_0.jpg', encrypted_frame)
 
-    cv2.imwrite('encrypted_frame_0.jpg', encrypted_frame) 
-
-    decryptor = ImageDecryptor(r=3.99, x0=0.50000000001)
-    decrypted_frame = decryptor.decrypt(encrypted_frame, None ,permutation, encrypted_frame.shape)
-
-    cv2.imwrite('decrypted_frame_0.jpg', decrypted_frame) 
+    decryptor = ImageDecryptor(frame_shape, r=r, x0=x0)
+    decrypted_frame = decryptor.decrypt(encrypted_frame)
+    cv2.imwrite('decrypted_frame_0.jpg', decrypted_frame)
